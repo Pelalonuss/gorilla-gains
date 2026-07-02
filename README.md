@@ -4,7 +4,7 @@ Ein knallbunter **Beast-Mode Trainings-Tracker** im Neon-/Comic-Look – mit Dop
 automatischem Pausen-Timer und Fortschritts-Verlauf. Läuft komplett im Browser, ohne Account,
 alle Daten bleiben auf deinem Gerät. Als **PWA** installierbar direkt auf dem iPhone-Home-Bildschirm.
 
-👉 **Live:** _(nach dem ersten Deploy hier eintragen)_ `https://<dein-user>.github.io/gorilla-gains/`
+👉 **Live:** **https://pelalonuss.github.io/gorilla-gains/**
 
 ---
 
