@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Gorilla Gains 🦍</title>
+
+    <!-- PWA / iPhone -->
+    <link rel="manifest" href="./manifest.webmanifest">
+    <meta name="theme-color" content="#0f0f0f">
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="./favicon-32.png" sizes="32x32" type="image/png">
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Gorilla Gains">
+
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel für JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Canvas Confetti für den Dopamin-Kick! -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brandPink: '#FF579F',
+                        brandCyan: '#00F0FF',
+                        brandYellow: '#FFDE00',
+                        brandPurple: '#BD00FF',
+                        brandGreen: '#00FF7F'
+                    },
+                    boxShadow: {
+                        '3d': '4px 6px 0px 0px rgba(0,0,0,1)',
+                        '3d-hover': '2px 3px 0px 0px rgba(0,0,0,1)',
+                        '3d-active': '0px 0px 0px 0px rgba(0,0,0,1)',
+                    },
+                    animation: {
+                        'pop-in': 'popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+                        'bounce-slight': 'bounceSlight 2s infinite',
+                    },
+                    keyframes: {
+                        popIn: {
+                            '0%': { transform: 'scale(0.8)', opacity: '0' },
+                            '100%': { transform: 'scale(1)', opacity: '1' },
+                        },
+                        bounceSlight: {
+                            '0%, 100%': { transform: 'translateY(-5%)' },
+                            '50%': { transform: 'translateY(0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        html, body { height: 100%; }
+        body {
+            background-color: #f0f0f0;
+            background-image: radial-gradient(#d1d1d1 2px, transparent 2px);
+            background-size: 30px 30px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            overscroll-behavior: none;
+        }
+
+        /* iOS: verhindert Auto-Zoom beim Fokussieren von Inputs (>=16px) */
+        input, textarea, select { font-size: 16px; }
+
+        /* Safe-Area (Notch / Home-Indicator) */
+        .safe-top { padding-top: calc(0.9rem + env(safe-area-inset-top)); }
+        .safe-bottom { padding-bottom: calc(0.6rem + env(safe-area-inset-bottom)); }
+
+        /* 3D Button Style - Das Geheimnis für das gute Klickgefühl */
+        .btn-3d {
+            border: 3px solid black;
+            box-shadow: 4px 6px 0px 0px rgba(0,0,0,1);
+            transition: all 0.1s ease-in-out;
+            transform: translateY(0);
+        }
+        .btn-3d:active {
+            box-shadow: 0px 0px 0px 0px rgba(0,0,0,1);
+            transform: translateY(6px) translateX(4px);
+        }
+
+        /* Iso-Style für Cards */
+        .iso-card {
+            border: 4px solid black;
+            box-shadow: 6px 8px 0px 0px rgba(0,0,0,1);
+            transition: transform 0.2s;
+        }
+        .iso-card:active { transform: scale(0.98); }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #fff; border-left: 2px solid black; }
+        ::-webkit-scrollbar-thumb { background: #FF579F; border: 2px solid black; border-radius: 10px; }
+
+        /* Checkbox Styling */
+        .dopamine-checkbox {
+            appearance: none;
+            width: 34px;
+            height: 34px;
+            border: 3px solid black;
+            border-radius: 8px;
+            background-color: white;
+            box-shadow: 2px 3px 0px 0px rgba(0,0,0,1);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: grid;
+            place-content: center;
+            flex-shrink: 0;
+        }
+        .dopamine-checkbox::before {
+            content: "🔥";
+            transform: scale(0);
+            transition: 0.2s transform cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            font-size: 18px;
+        }
+        .dopamine-checkbox:checked {
+            background-color: #00FF7F;
+            box-shadow: 0px 0px 0px 0px rgba(0,0,0,1);
+            transform: translateY(3px) translateX(2px);
+        }
+        .dopamine-checkbox:checked::before { transform: scale(1); }
+
+        .no-tap-callout { -webkit-touch-callout: none; user-select: none; }
+    </style>
+</head>
+<body class="text-black">
+    <div id="root"></div>
+
+    <!-- App-Code als JSX. Wird unten manuell mit dem klassischen JSX-Runtime (React.createElement)
+         kompiliert – der automatische Runtime würde ein illegales import-Statement erzeugen. -->
+    <script type="text/jsx-app" id="app-source">
+        const { useState, useEffect, useRef, useCallback } = React;
+
+        /* ============================================================
+           Helpers: Storage, Sound, Haptik, Wake-Lock, Konfetti
+           ============================================================ */
+
+        function useLocalStorage(key, initialValue) {
+            const [storedValue, setStoredValue] = useState(() => {
+                try {
+                    const item = window.localStorage.getItem(key);
+                    return item ? JSON.parse(item) : initialValue;
+                } catch (error) { return initialValue; }
+            });
+            const setValue = useCallback((value) => {
+                setStoredValue(prev => {
+                    const valueToStore = value instanceof Function ? value(prev) : value;
+                    try { window.localStorage.setItem(key, JSON.stringify(valueToStore)); } catch (e) {}
+                    return valueToStore;
+                });
+            }, [key]);
+            return [storedValue, setValue];
+        }
+
+        // --- Sound (WebAudio, iOS-tauglich nach erster Interaktion) ---
+        let audioCtx = null;
+        function unlockAudio() {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+            } catch (e) {}
+        }
+        function beep(times) {
+            if (!audioCtx) return;
+            try {
+                const now = audioCtx.currentTime;
+                const freqs = times === 'big' ? [660, 880, 1320] : [880, 1320];
+                freqs.forEach((f, i) => {
+                    const o = audioCtx.createOscillator();
+                    const g = audioCtx.createGain();
+                    o.type = 'sine'; o.frequency.value = f;
+                    o.connect(g); g.connect(audioCtx.destination);
+                    const t = now + i * 0.16;
+                    g.gain.setValueAtTime(0.0001, t);
+                    g.gain.exponentialRampToValueAtTime(0.35, t + 0.02);
+                    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.15);
+                    o.start(t); o.stop(t + 0.16);
+                });
+            } catch (e) {}
+        }
+        function haptic(pattern) { try { if (navigator.vibrate) navigator.vibrate(pattern); } catch (e) {} }
+
+        // Audio beim ersten Tap freischalten
+        if (typeof window !== 'undefined') {
+            const unlock = () => { unlockAudio(); window.removeEventListener('pointerdown', unlock); };
+            window.addEventListener('pointerdown', unlock, { once: true });
+        }
+
+        // --- Wake Lock (Bildschirm anlassen während Training) ---
+        function useWakeLock(active) {
+            useEffect(() => {
+                if (!active || !('wakeLock' in navigator)) return;
+                let lock = null;
+                let released = false;
+                const request = async () => {
+                    try { lock = await navigator.wakeLock.request('screen'); } catch (e) {}
+                };
+                const onVisible = () => {
+                    if (document.visibilityState === 'visible' && !released) request();
+                };
+                request();
+                document.addEventListener('visibilitychange', onVisible);
+                return () => {
+                    released = true;
+                    document.removeEventListener('visibilitychange', onVisible);
+                    if (lock) { try { lock.release(); } catch (e) {} }
+                };
+            }, [active]);
+        }
+
+        // --- Konfetti ---
+        const fireConfetti = () => {
+            if (typeof confetti !== 'function') return;
+            confetti({ particleCount: 90, spread: 70, origin: { y: 0.65 }, zIndex: 9999,
+                colors: ['#FF579F', '#00F0FF', '#FFDE00', '#BD00FF', '#00FF7F'] });
+        };
+        const fireMegaConfetti = () => {
+            if (typeof confetti !== 'function') return;
+            const duration = 2500;
+            const end = Date.now() + duration;
+            const defaults = { startVelocity: 32, spread: 360, ticks: 60, zIndex: 9999,
+                colors: ['#FF579F', '#00F0FF', '#FFDE00', '#BD00FF', '#00FF7F'] };
+            const rand = (min, max) => Math.random() * (max - min) + min;
+            const interval = setInterval(() => {
+                const timeLeft = end - Date.now();
+                if (timeLeft <= 0) return clearInterval(interval);
+                const particleCount = 50 * (timeLeft / duration);
+                confetti(Object.assign({}, defaults, { particleCount, origin: { x: rand(0.1, 0.3), y: Math.random() - 0.2 } }));
+                confetti(Object.assign({}, defaults, { particleCount, origin: { x: rand(0.7, 0.9), y: Math.random() - 0.2 } }));
+            }, 220);
+        };
+
+        // --- Zeit-Formatierung ---
+        const fmtTime = (sec) => {
+            sec = Math.max(0, Math.round(sec));
+            const m = Math.floor(sec / 60);
+            const s = sec % 60;
+            return `${m}:${s < 10 ? '0' : ''}${s}`;
+        };
+        const sameDay = (a, b) => new Date(a).toDateString() === new Date(b).toDateString();
+
+        /* ============================================================
+           Rest-Timer Hook (Timestamp-basiert -> läuft im Hintergrund weiter)
+           ============================================================ */
+        function useRestTimer() {
+            const [state, setState] = useState({ running: false, remaining: 0, total: 0 });
+            const endRef = useRef(0);
+            const doneRef = useRef(null);
+
+            useEffect(() => {
+                if (!state.running) return;
+                const tick = () => {
+                    const rem = Math.max(0, Math.round((endRef.current - Date.now()) / 1000));
+                    if (rem <= 0) {
+                        setState(s => ({ ...s, running: false, remaining: 0 }));
+                        if (doneRef.current) doneRef.current();
+                    } else {
+                        setState(s => (s.remaining === rem ? s : { ...s, remaining: rem }));
+                    }
+                };
+                tick();
+                const id = setInterval(tick, 250);
+                return () => clearInterval(id);
+            }, [state.running]);
+
+            const start = useCallback((seconds, onDone) => {
+                doneRef.current = onDone || null;
+                endRef.current = Date.now() + seconds * 1000;
+                setState({ running: true, remaining: seconds, total: seconds });
+            }, []);
+            const add = useCallback((delta) => {
+                setState(s => {
+                    if (s.running) {
+                        endRef.current = Math.max(Date.now(), endRef.current + delta * 1000);
+                        const rem = Math.max(0, Math.round((endRef.current - Date.now()) / 1000));
+                        return { ...s, remaining: rem, total: Math.max(s.total, rem) };
+                    }
+                    const rem = Math.max(0, s.remaining + delta);
+                    return { ...s, remaining: rem, total: Math.max(s.total, rem) };
+                });
+            }, []);
+            const pause = useCallback(() => setState(s => ({ ...s, running: false })), []);
+            const resume = useCallback(() => {
+                setState(s => {
+                    if (s.remaining <= 0) return s;
+                    endRef.current = Date.now() + s.remaining * 1000;
+                    return { ...s, running: true };
+                });
+            }, []);
+            const stop = useCallback(() => setState({ running: false, remaining: 0, total: 0 }), []);
+
+            return { ...state, start, add, pause, resume, stop };
+        }
+
+        /* ============================================================
+           Stats-Helfer
+           ============================================================ */
+        function computeStreak(history) {
+            if (!history.length) return 0;
+            const days = new Set(history.map(s => new Date(s.date).toDateString()));
+            let streak = 0;
+            const d = new Date();
+            if (!days.has(d.toDateString())) d.setDate(d.getDate() - 1);
+            while (days.has(d.toDateString())) { streak++; d.setDate(d.getDate() - 1); }
+            return streak;
+        }
+        function workoutsThisWeek(history) {
+            const now = Date.now();
+            const week = 7 * 24 * 60 * 60 * 1000;
+            return history.filter(s => now - new Date(s.date).getTime() < week).length;
+        }
+        function lastPerformance(history, exName) {
+            for (const s of history) {
+                const ex = (s.exercises || []).find(e => e.name === exName && e.doneSets > 0);
+                if (ex) return ex;
+            }
+            return null;
+        }
+
+        /* ============================================================
+           Logo
+           ============================================================ */
+        function GorillaLogo({ size = 44 }) {
+            return (
+                <svg width={size} height={size} viewBox="0 0 512 512" className="border-[3px] border-black rounded-xl shadow-3d-hover">
+                    <defs>
+                        <linearGradient id="ggrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0" stopColor="#BD00FF" /><stop offset="1" stopColor="#FF579F" />
+                        </linearGradient>
+                    </defs>
+                    <rect x="0" y="0" width="512" height="512" rx="115" fill="url(#ggrad)" />
+                    <circle cx="102" cy="179" r="59" fill="#1a1a1e" /><circle cx="410" cy="179" r="59" fill="#1a1a1e" />
+                    <circle cx="102" cy="179" r="29" fill="#9e9ea8" /><circle cx="410" cy="179" r="29" fill="#9e9ea8" />
+                    <rect x="85" y="113" width="342" height="317" rx="118" fill="#1a1a1e" />
+                    <rect x="136" y="179" width="240" height="231" rx="87" fill="#9e9ea8" />
+                    <rect x="136" y="217" width="240" height="53" rx="26" fill="#1a1a1e" />
+                    <circle cx="197" cy="274" r="26" fill="#121216" /><circle cx="315" cy="274" r="26" fill="#121216" />
+                    <circle cx="205" cy="266" r="9" fill="#fff" /><circle cx="323" cy="266" r="9" fill="#fff" />
+                    <ellipse cx="226" cy="343" rx="11" ry="16" fill="#121216" /><ellipse cx="286" cy="343" rx="11" ry="16" fill="#121216" />
+                    <path d="M213 355 Q256 388 299 355" fill="none" stroke="#121216" strokeWidth="7" strokeLinecap="round" />
+                </svg>
+            );
+        }
+
+        /* ============================================================
+           App
+           ============================================================ */
+        const DEFAULT_SETTINGS = { restDefault: 90, sound: true, vibrate: true, keepAwake: true, autoRest: true };
+        const COLORS = ['bg-brandPink', 'bg-brandCyan', 'bg-brandYellow', 'bg-brandPurple', 'bg-brandGreen'];
+
+        function App() {
+            const [activeTab, setActiveTab] = useState('workout');
+            const [plans, setPlans] = useLocalStorage('gg-plans', [
+                { id: 1, name: 'Push Day 🦍', color: 'bg-brandPink', exercises: [
+                    { id: 101, name: 'Bankdrücken', sets: 3, reps: 10, weight: 60, rest: 120 }
+                ]}
+            ]);
+            const [history, setHistory] = useLocalStorage('gg-history', []);
+            const [settings, setSettings] = useLocalStorage('gg-settings', DEFAULT_SETTINGS);
+            const [activeWorkout, setActiveWorkout] = useState(false);
+
+            const timer = useRestTimer();
+            const settingsRef = useRef(settings);
+            settingsRef.current = settings;
+
+            const onRestDone = useCallback(() => {
+                const s = settingsRef.current;
+                if (s.sound) beep();
+                if (s.vibrate) haptic([140, 70, 140]);
+                fireConfetti();
+            }, []);
+
+            const startTimer = useCallback((seconds) => {
+                unlockAudio();
+                timer.start(seconds, onRestDone);
+            }, [timer, onRestDone]);
+
+            const showDock = timer.running || timer.remaining > 0;
+
+            return (
+                <div className="h-[100dvh] flex flex-col overflow-hidden relative">
+                    {/* Header */}
+                    <header className="safe-top px-4 pb-3 bg-white border-b-4 border-black z-20">
+                        <div className="flex justify-between items-center gap-3">
+                            <div className="flex items-center gap-3">
+                                <GorillaLogo size={44} />
+                                <h1 className="text-2xl font-black italic transform -skew-x-6 leading-none">
+                                    GORILLA<br /><span className="text-brandPink">GAINS</span> 🦍
+                                </h1>
+                            </div>
+                            <StreakBadge streak={computeStreak(history)} />
+                        </div>
+                    </header>
+
+                    {/* Content */}
+                    <main className="flex-1 overflow-y-auto p-4 pb-6">
+                        {activeTab === 'workout' &&
+                            <WorkoutView plans={plans} setPlans={setPlans} history={history} setHistory={setHistory}
+                                settings={settings} startTimer={startTimer} timer={timer}
+                                onActiveChange={setActiveWorkout} />}
+                        {activeTab === 'plan' && <PlanView plans={plans} setPlans={setPlans} settings={settings} />}
+                        {activeTab === 'stats' && <StatsView history={history} setHistory={setHistory} />}
+                        {activeTab === 'settings' &&
+                            <SettingsView settings={settings} setSettings={setSettings}
+                                plans={plans} setPlans={setPlans} history={history} setHistory={setHistory} />}
+                    </main>
+
+                    {/* Bottom Dock: Rest-Timer ODER Quick-Timer */}
+                    <div className="border-t-4 border-black bg-white">
+                        {showDock ? (
+                            <RestTimerBar timer={timer} />
+                        ) : (
+                            <div className="px-3 pt-2 flex justify-center gap-2">
+                                <span className="text-xs font-black text-gray-400 self-center mr-1 uppercase">Timer:</span>
+                                {[[45, 'bg-brandYellow', '45s'], [90, 'bg-brandCyan', '90s'], [120, 'bg-brandPink', '2m'], [180, 'bg-brandPurple text-white', '3m']].map(([sec, cls, label]) => (
+                                    <button key={sec} onClick={() => startTimer(sec)}
+                                        className={`btn-3d ${cls} w-14 h-11 rounded-xl font-black text-sm`}>{label}</button>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Navigation */}
+                        <nav className="safe-bottom px-2 pt-2 flex justify-around">
+                            {[
+                                ['workout', '🏋️‍♂️', 'Training', 'text-brandPink'],
+                                ['plan', '📝', 'Planer', 'text-brandPurple'],
+                                ['stats', '📊', 'Verlauf', 'text-brandCyan'],
+                                ['settings', '⚙️', 'Setup', 'text-brandGreen'],
+                            ].map(([tab, icon, label, active]) => (
+                                <button key={tab} onClick={() => setActiveTab(tab)}
+                                    className={`flex flex-col items-center transition-transform px-2 ${activeTab === tab ? 'scale-110 ' + active : 'text-gray-400'}`}>
+                                    <span className="text-2xl">{icon}</span>
+                                    <span className="font-bold text-[11px] mt-0.5">{label}</span>
+                                </button>
+                            ))}
+                        </nav>
+                    </div>
+                </div>
+            );
+        }
+
+        function StreakBadge({ streak }) {
+            return (
+                <div className={`flex items-center gap-1 border-[3px] border-black rounded-xl px-2 py-1 font-black text-sm ${streak > 0 ? 'bg-brandYellow' : 'bg-gray-200'} shadow-3d-hover no-tap-callout`}>
+                    <span className="text-lg">{streak > 0 ? '🔥' : '💤'}</span>
+                    <span>{streak}</span>
+                </div>
+            );
+        }
+
+        function RestTimerBar({ timer }) {
+            const pct = timer.total > 0 ? Math.max(0, Math.min(100, (timer.remaining / timer.total) * 100)) : 0;
+            const low = timer.remaining <= 5 && timer.remaining > 0;
+            return (
+                <div className="p-3 animate-pop-in">
+                    <div className={`bg-black text-brandCyan border-4 ${low ? 'border-brandPink' : 'border-brandCyan'} rounded-2xl p-3`}>
+                        <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xl">⏱️</span>
+                                <span className={`text-3xl font-black font-mono ${low ? 'text-brandPink animate-pulse' : ''}`}>{fmtTime(timer.remaining)}</span>
+                                <span className="text-xs font-bold text-gray-400 uppercase">Pause</span>
+                            </div>
+                            <div className="flex gap-2">
+                                <button onClick={() => timer.add(-15)} className="bg-gray-700 text-white w-11 h-9 rounded-lg border-2 border-white font-black text-xs">-15</button>
+                                <button onClick={() => timer.add(15)} className="bg-gray-700 text-white w-11 h-9 rounded-lg border-2 border-white font-black text-xs">+15</button>
+                                {timer.running
+                                    ? <button onClick={timer.pause} className="bg-brandYellow text-black w-11 h-9 rounded-lg border-2 border-white font-black">⏸</button>
+                                    : <button onClick={timer.resume} className="bg-brandGreen text-black w-11 h-9 rounded-lg border-2 border-white font-black">▶</button>}
+                                <button onClick={timer.stop} className="bg-brandPink text-white w-11 h-9 rounded-lg border-2 border-white font-black">✕</button>
+                            </div>
+                        </div>
+                        <div className="h-2 bg-gray-800 rounded-full overflow-hidden border border-gray-600">
+                            <div className={`h-full ${low ? 'bg-brandPink' : 'bg-brandCyan'} transition-all duration-200`} style={{ width: pct + '%' }} />
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        /* ============================================================
+           Workout View
+           ============================================================ */
+        function WorkoutView({ plans, setPlans, history, setHistory, settings, startTimer, timer, onActiveChange }) {
+            const [selectedPlanId, setSelectedPlanId] = useState(null);
+            const [progress, setProgress] = useState({}); // { exId: [bool,...] }
+            const [startedAt, setStartedAt] = useState(null);
+
+            useWakeLock(!!selectedPlanId && settings.keepAwake);
+            useEffect(() => { onActiveChange(!!selectedPlanId); }, [selectedPlanId, onActiveChange]);
+
+            const currentPlan = plans.find(p => p.id === selectedPlanId);
+
+            const openPlan = (id) => {
+                const plan = plans.find(p => p.id === id);
+                const init = {};
+                (plan.exercises || []).forEach(ex => { init[ex.id] = new Array(ex.sets).fill(false); });
+                setProgress(init);
+                setStartedAt(Date.now());
+                setSelectedPlanId(id);
+            };
+
+            const toggleSet = (ex, i) => {
+                setProgress(prev => {
+                    const arr = (prev[ex.id] || new Array(ex.sets).fill(false)).slice();
+                    while (arr.length < ex.sets) arr.push(false);
+                    arr[i] = !arr[i];
+                    if (arr[i]) {
+                        fireConfetti();
+                        if (settings.vibrate) haptic(30);
+                        if (settings.autoRest) startTimer(ex.rest || settings.restDefault);
+                    }
+                    return { ...prev, [ex.id]: arr };
+                });
+            };
+
+            const totals = React.useMemo(() => {
+                if (!currentPlan) return { done: 0, all: 0, volume: 0 };
+                let done = 0, all = 0, volume = 0;
+                currentPlan.exercises.forEach(ex => {
+                    const arr = progress[ex.id] || [];
+                    const d = arr.filter(Boolean).length;
+                    done += d; all += ex.sets;
+                    volume += (Number(ex.weight) || 0) * (Number(ex.reps) || 0) * d;
+                });
+                return { done, all, volume };
+            }, [currentPlan, progress]);
+
+            const finishWorkout = () => {
+                const session = {
+                    id: Date.now(),
+                    date: new Date().toISOString(),
+                    planId: currentPlan.id,
+                    planName: currentPlan.name,
+                    durationSec: startedAt ? Math.round((Date.now() - startedAt) / 1000) : 0,
+                    totalVolume: Math.round(totals.volume),
+                    totalSets: totals.done,
+                    exercises: currentPlan.exercises.map(ex => ({
+                        name: ex.name, weight: Number(ex.weight) || 0, reps: Number(ex.reps) || 0,
+                        sets: ex.sets, doneSets: (progress[ex.id] || []).filter(Boolean).length
+                    })),
+                };
+                if (totals.done > 0) setHistory(prev => [session, ...prev].slice(0, 200));
+                if (settings.sound) beep('big');
+                if (settings.vibrate) haptic([200, 80, 200, 80, 300]);
+                fireMegaConfetti();
+                timer.stop();
+                setTimeout(() => { setSelectedPlanId(null); setProgress({}); setStartedAt(null); }, 1800);
+            };
+
+            // --- Plan-Auswahl ---
+            if (!currentPlan) {
+                return (
+                    <div className="animate-pop-in">
+                        <h2 className="text-xl font-black mb-4">Wähle dein Workout! 🚀</h2>
+                        {plans.length === 0 && (
+                            <div className="iso-card bg-white p-6 rounded-2xl text-center">
+                                <p className="font-bold text-gray-500">Noch kein Plan da.<br />Erstelle einen im <span className="text-brandPurple">Planer</span> 📝</p>
+                            </div>
+                        )}
+                        <div className="grid gap-4">
+                            {plans.map(plan => {
+                                const last = history.find(h => h.planId === plan.id);
+                                return (
+                                    <button key={plan.id} onClick={() => openPlan(plan.id)}
+                                        className={`iso-card ${plan.color} p-6 rounded-2xl text-left flex justify-between items-center`}>
+                                        <div className="min-w-0">
+                                            <h3 className="text-2xl font-black text-white drop-shadow-md truncate">{plan.name}</h3>
+                                            <p className="text-white font-bold text-sm opacity-90">{plan.exercises.length} Übungen{last ? ` · zuletzt ${new Date(last.date).toLocaleDateString('de-DE')}` : ''}</p>
+                                        </div>
+                                        <div className="text-3xl bg-white rounded-full w-12 h-12 flex items-center justify-center border-[3px] border-black flex-shrink-0 ml-3">▶️</div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                );
+            }
+
+            const pct = totals.all > 0 ? Math.round((totals.done / totals.all) * 100) : 0;
+
+            return (
+                <div className="animate-pop-in">
+                    <button onClick={() => { if (confirm('Workout abbrechen? Fortschritt wird nicht gespeichert.')) { setSelectedPlanId(null); timer.stop(); } }}
+                        className="btn-3d bg-white px-4 py-2 rounded-xl font-bold mb-4 flex items-center gap-2">🔙 Abbrechen</button>
+
+                    <h2 className="text-2xl font-black mb-3 uppercase bg-black text-white inline-block px-3 py-1 -skew-x-6 transform">{currentPlan.name}</h2>
+
+                    {/* Fortschritts-Übersicht */}
+                    <div className="iso-card bg-white p-3 rounded-2xl mb-5 flex items-center gap-4">
+                        <div className="flex-1">
+                            <div className="flex justify-between text-xs font-black uppercase mb-1">
+                                <span>{totals.done}/{totals.all} Sätze</span>
+                                <span>{Math.round(totals.volume).toLocaleString('de-DE')} kg Volumen</span>
+                            </div>
+                            <div className="h-4 bg-gray-200 rounded-full overflow-hidden border-2 border-black">
+                                <div className="h-full bg-brandGreen transition-all duration-300" style={{ width: pct + '%' }} />
+                            </div>
+                        </div>
+                        <div className="text-2xl font-black">{pct}%</div>
+                    </div>
+
+                    <div className="flex flex-col gap-5">
+                        {currentPlan.exercises.map(ex => (
+                            <ExerciseCard key={ex.id} exercise={ex} planId={currentPlan.id} setPlans={setPlans}
+                                done={progress[ex.id] || []} onToggle={(i) => toggleSet(ex, i)}
+                                last={lastPerformance(history, ex.name)}
+                                onRest={() => startTimer(ex.rest || settings.restDefault)} />
+                        ))}
+                        {currentPlan.exercises.length === 0 && (
+                            <div className="iso-card bg-white p-6 rounded-2xl text-center font-bold text-gray-500">
+                                Keine Übungen. Füge welche im Planer hinzu 📝
+                            </div>
+                        )}
+                    </div>
+
+                    <button onClick={finishWorkout}
+                        className="btn-3d w-full bg-brandGreen text-black font-black text-2xl py-4 rounded-xl mt-8 flex justify-center items-center gap-2">
+                        🏆 WORKOUT BEENDEN
+                    </button>
+                </div>
+            );
+        }
+
+        function ExerciseCard({ exercise, planId, setPlans, done, onToggle, last, onRest }) {
+            const patch = (field, value) => setPlans(prev => prev.map(p => p.id !== planId ? p : {
+                ...p, exercises: p.exercises.map(e => e.id !== exercise.id ? e : { ...e, [field]: value })
+            }));
+
+            const doneCount = done.filter(Boolean).length;
+            const complete = doneCount >= exercise.sets && exercise.sets > 0;
+
+            return (
+                <div className={`iso-card p-4 rounded-2xl transition-colors ${complete ? 'bg-brandGreen' : 'bg-white'}`}>
+                    <div className="flex justify-between items-center mb-3 border-b-2 border-black/20 pb-2">
+                        <h3 className="text-xl font-black">{complete ? '✅ ' : ''}{exercise.name}</h3>
+                        <span className="text-xs font-black bg-black text-white px-2 py-1 rounded-lg">{doneCount}/{exercise.sets}</span>
+                    </div>
+
+                    {last && (
+                        <div className="text-xs font-bold text-gray-500 mb-3 -mt-1">
+                            📈 Letztes Mal: {last.weight} kg × {last.reps} · {last.doneSets} Sätze
+                        </div>
+                    )}
+
+                    <div className="flex gap-3 mb-4">
+                        <NumField label="Gewicht (kg)" value={exercise.weight} onChange={(v) => patch('weight', v)} step="2.5" />
+                        <NumField label="Reps" value={exercise.reps} onChange={(v) => patch('reps', v)} step="1" />
+                    </div>
+
+                    <div className="flex justify-between items-end">
+                        <div className="flex-1">
+                            <label className="text-sm font-bold text-gray-600 mb-2 block">Sätze abhaken 👇</label>
+                            <div className="flex gap-3 flex-wrap">
+                                {Array.from({ length: exercise.sets }).map((_, i) => (
+                                    <input key={i} type="checkbox" className="dopamine-checkbox"
+                                        checked={done[i] || false} onChange={() => onToggle(i)} />
+                                ))}
+                            </div>
+                        </div>
+                        <button onClick={onRest} title="Pause starten"
+                            className="btn-3d bg-black text-brandCyan px-3 py-2 rounded-xl font-black text-sm flex items-center gap-1 ml-2">
+                            ⏱️ {exercise.rest || 90}s
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        function NumField({ label, value, onChange, step }) {
+            return (
+                <div className="flex-1 bg-gray-100 p-2 rounded-xl border-2 border-black flex flex-col">
+                    <label className="text-xs font-bold text-gray-500 uppercase">{label}</label>
+                    <input type="number" inputMode="decimal" step={step} value={value}
+                        onFocus={(e) => e.target.select()}
+                        onChange={(e) => onChange(e.target.value === '' ? '' : Number(e.target.value))}
+                        className="bg-transparent font-black text-xl outline-none w-full" />
+                </div>
+            );
+        }
+
+        /* ============================================================
+           Planer
+           ============================================================ */
+        function PlanView({ plans, setPlans, settings }) {
+            const [newPlanName, setNewPlanName] = useState('');
+
+            const addPlan = () => {
+                if (!newPlanName.trim()) return;
+                const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+                setPlans(prev => [...prev, { id: Date.now(), name: newPlanName.trim(), color, exercises: [] }]);
+                setNewPlanName('');
+            };
+            const deletePlan = (id) => { if (confirm('Tag wirklich löschen? 🗑️')) setPlans(prev => prev.filter(p => p.id !== id)); };
+
+            return (
+                <div className="animate-pop-in">
+                    <h2 className="text-2xl font-black mb-4">Dein Masterplan 🧠</h2>
+                    <div className="flex gap-2 mb-6 bg-white p-3 rounded-2xl iso-card">
+                        <input type="text" placeholder="Neuer Tag (z.B. Leg Day 🍗)" value={newPlanName}
+                            onChange={(e) => setNewPlanName(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && addPlan()}
+                            className="flex-1 min-w-0 bg-gray-100 border-2 border-black rounded-xl px-3 py-2 font-bold outline-none focus:bg-white" />
+                        <button onClick={addPlan} className="btn-3d bg-brandCyan px-5 py-2 rounded-xl font-black text-xl flex-shrink-0">+</button>
+                    </div>
+                    <div className="space-y-6">
+                        {plans.map(plan => (
+                            <PlanEditor key={plan.id} plan={plan} setPlans={setPlans} settings={settings} onDelete={() => deletePlan(plan.id)} />
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        function PlanEditor({ plan, setPlans, settings, onDelete }) {
+            const [newExName, setNewExName] = useState('');
+
+            const patchPlan = (patch) => setPlans(prev => prev.map(p => p.id !== plan.id ? p : { ...p, ...patch }));
+            const patchEx = (exId, patch) => setPlans(prev => prev.map(p => p.id !== plan.id ? p : {
+                ...p, exercises: p.exercises.map(e => e.id !== exId ? e : { ...e, ...patch })
+            }));
+
+            const addExercise = () => {
+                if (!newExName.trim()) return;
+                setPlans(prev => prev.map(p => p.id !== plan.id ? p : {
+                    ...p, exercises: [...p.exercises, { id: Date.now(), name: newExName.trim(), sets: 3, reps: 10, weight: 0, rest: settings.restDefault }]
+                }));
+                setNewExName('');
+            };
+            const deleteExercise = (exId) => setPlans(prev => prev.map(p => p.id !== plan.id ? p : { ...p, exercises: p.exercises.filter(e => e.id !== exId) }));
+            const bump = (exId, field, delta, min) => setPlans(prev => prev.map(p => p.id !== plan.id ? p : {
+                ...p, exercises: p.exercises.map(e => e.id !== exId ? e : { ...e, [field]: Math.max(min, (Number(e[field]) || 0) + delta) })
+            }));
+            const move = (index, dir) => setPlans(prev => prev.map(p => {
+                if (p.id !== plan.id) return p;
+                const arr = [...p.exercises]; const j = index + dir;
+                if (j < 0 || j >= arr.length) return p;
+                [arr[index], arr[j]] = [arr[j], arr[index]];
+                return { ...p, exercises: arr };
+            }));
+            const cycleColor = () => {
+                const i = COLORS.indexOf(plan.color);
+                patchPlan({ color: COLORS[(i + 1) % COLORS.length] });
+            };
+
+            return (
+                <div className={`iso-card ${plan.color} p-4 rounded-2xl`}>
+                    <div className="flex justify-between items-center mb-4 gap-2">
+                        <input value={plan.name} onChange={(e) => patchPlan({ name: e.target.value })}
+                            className="flex-1 min-w-0 text-xl font-black text-white drop-shadow-md bg-transparent outline-none border-b-2 border-transparent focus:border-white" />
+                        <button onClick={cycleColor} className="bg-white/90 rounded-full w-8 h-8 border-2 border-black flex-shrink-0" title="Farbe">🎨</button>
+                        <button onClick={onDelete} className="bg-red-500 text-white rounded-full w-8 h-8 border-2 border-black flex items-center justify-center font-bold flex-shrink-0">✕</button>
+                    </div>
+
+                    <div className="bg-white rounded-xl p-2 border-2 border-black mb-4 flex gap-2">
+                        <input type="text" placeholder="Übung (z.B. Squats 🍑)" value={newExName}
+                            onChange={(e) => setNewExName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addExercise()}
+                            className="flex-1 min-w-0 bg-transparent font-bold outline-none px-1" />
+                        <button onClick={addExercise} className="btn-3d bg-black text-white px-3 py-1 rounded-lg font-bold text-sm flex-shrink-0">Add</button>
+                    </div>
+
+                    <div className="space-y-2">
+                        {plan.exercises.map((ex, index) => (
+                            <div key={ex.id} className="bg-white rounded-xl p-3 border-2 border-black">
+                                <div className="flex justify-between items-center mb-2 gap-2">
+                                    <input value={ex.name} onChange={(e) => patchEx(ex.id, { name: e.target.value })}
+                                        className="flex-1 min-w-0 font-black bg-transparent outline-none border-b-2 border-transparent focus:border-black" />
+                                    <div className="flex gap-1 flex-shrink-0">
+                                        <button onClick={() => move(index, -1)} className="bg-gray-200 border-2 border-black rounded w-7 h-7 font-bold disabled:opacity-30" disabled={index === 0}>↑</button>
+                                        <button onClick={() => move(index, 1)} className="bg-gray-200 border-2 border-black rounded w-7 h-7 font-bold disabled:opacity-30" disabled={index === plan.exercises.length - 1}>↓</button>
+                                        <button onClick={() => deleteExercise(ex.id)} className="text-red-500 text-lg px-1">🗑️</button>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2 text-center">
+                                    <Stepper label="Sätze" value={ex.sets} onDec={() => bump(ex.id, 'sets', -1, 1)} onInc={() => bump(ex.id, 'sets', 1, 1)} />
+                                    <Stepper label="Reps" value={ex.reps} onDec={() => bump(ex.id, 'reps', -1, 0)} onInc={() => bump(ex.id, 'reps', 1, 0)} />
+                                    <Stepper label="Pause" value={(ex.rest || settings.restDefault) + 's'} onDec={() => bump(ex.id, 'rest', -15, 15)} onInc={() => bump(ex.id, 'rest', 15, 15)} />
+                                </div>
+                            </div>
+                        ))}
+                        {plan.exercises.length === 0 && <p className="text-white/80 font-bold text-sm text-center py-2">Noch keine Übungen</p>}
+                    </div>
+                </div>
+            );
+        }
+
+        function Stepper({ label, value, onDec, onInc }) {
+            return (
+                <div className="bg-gray-100 rounded-lg border-2 border-black p-1">
+                    <div className="text-[10px] font-black text-gray-500 uppercase">{label}</div>
+                    <div className="flex items-center justify-between px-1">
+                        <button onClick={onDec} className="bg-brandPink border-2 border-black rounded w-6 h-6 font-black leading-none">-</button>
+                        <span className="font-black text-sm">{value}</span>
+                        <button onClick={onInc} className="bg-brandGreen border-2 border-black rounded w-6 h-6 font-black leading-none">+</button>
+                    </div>
+                </div>
+            );
+        }
+
+        /* ============================================================
+           Verlauf / Stats
+           ============================================================ */
+        function StatsView({ history, setHistory }) {
+            const streak = computeStreak(history);
+            const week = workoutsThisWeek(history);
+            const totalVol = history.reduce((a, s) => a + (s.totalVolume || 0), 0);
+            const recent = history.slice(0, 10);
+            const maxVol = Math.max(1, ...recent.map(s => s.totalVolume || 0));
+
+            const deleteSession = (id) => { if (confirm('Diesen Eintrag löschen?')) setHistory(prev => prev.filter(s => s.id !== id)); };
+
+            return (
+                <div className="animate-pop-in">
+                    <h2 className="text-2xl font-black mb-4">Dein Fortschritt 📊</h2>
+
+                    <div className="grid grid-cols-3 gap-3 mb-6">
+                        <StatCard color="bg-brandYellow" icon="🔥" value={streak} label="Streak" />
+                        <StatCard color="bg-brandCyan" icon="📅" value={week} label="Diese Woche" />
+                        <StatCard color="bg-brandGreen" icon="🏋️" value={history.length} label="Workouts" />
+                    </div>
+
+                    {history.length === 0 ? (
+                        <div className="iso-card bg-white p-6 rounded-2xl text-center font-bold text-gray-500">
+                            Noch keine Workouts. Zieh dein erstes durch! 💪
+                        </div>
+                    ) : (
+                        <>
+                            <div className="iso-card bg-white p-4 rounded-2xl mb-6">
+                                <div className="flex justify-between items-baseline mb-3">
+                                    <h3 className="font-black">Volumen (letzte 10)</h3>
+                                    <span className="text-xs font-bold text-gray-500">gesamt {totalVol.toLocaleString('de-DE')} kg</span>
+                                </div>
+                                <div className="flex items-end gap-1.5 h-28">
+                                    {recent.slice().reverse().map(s => (
+                                        <div key={s.id} className="flex-1 flex flex-col items-center justify-end h-full">
+                                            <div className="w-full bg-brandPurple border-2 border-black rounded-t-md transition-all"
+                                                style={{ height: `${Math.max(6, ((s.totalVolume || 0) / maxVol) * 100)}%` }} />
+                                            <span className="text-[9px] font-bold text-gray-500 mt-1">{new Date(s.date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <h3 className="font-black mb-3">Historie</h3>
+                            <div className="space-y-3">
+                                {history.map(s => (
+                                    <div key={s.id} className="iso-card bg-white p-3 rounded-2xl flex justify-between items-center">
+                                        <div className="min-w-0">
+                                            <div className="font-black truncate">{s.planName}</div>
+                                            <div className="text-xs font-bold text-gray-500">
+                                                {new Date(s.date).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' })}
+                                                {' · '}{s.totalSets} Sätze · {(s.totalVolume || 0).toLocaleString('de-DE')} kg
+                                                {s.durationSec ? ` · ${Math.round(s.durationSec / 60)} min` : ''}
+                                            </div>
+                                        </div>
+                                        <button onClick={() => deleteSession(s.id)} className="text-red-500 text-lg px-2 flex-shrink-0">🗑️</button>
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    )}
+                </div>
+            );
+        }
+
+        function StatCard({ color, icon, value, label }) {
+            return (
+                <div className={`iso-card ${color} p-3 rounded-2xl text-center`}>
+                    <div className="text-2xl">{icon}</div>
+                    <div className="text-2xl font-black leading-none my-1">{value}</div>
+                    <div className="text-[10px] font-black uppercase">{label}</div>
+                </div>
+            );
+        }
+
+        /* ============================================================
+           Einstellungen
+           ============================================================ */
+        function SettingsView({ settings, setSettings, plans, setPlans, history, setHistory }) {
+            const fileRef = useRef(null);
+
+            const exportData = () => {
+                const data = { version: 1, exportedAt: new Date().toISOString(), plans, history, settings };
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `gorilla-gains-backup-${new Date().toISOString().slice(0, 10)}.json`;
+                document.body.appendChild(a); a.click(); a.remove();
+                URL.revokeObjectURL(url);
+            };
+            const importData = (e) => {
+                const file = e.target.files && e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = () => {
+                    try {
+                        const data = JSON.parse(reader.result);
+                        if (data.plans) setPlans(data.plans);
+                        if (data.history) setHistory(data.history);
+                        if (data.settings) setSettings({ ...DEFAULT_SETTINGS, ...data.settings });
+                        alert('Import erfolgreich! ✅');
+                    } catch (err) { alert('Import fehlgeschlagen – ungültige Datei. ❌'); }
+                };
+                reader.readAsText(file);
+                e.target.value = '';
+            };
+            const resetAll = () => {
+                if (!confirm('Wirklich ALLES löschen? (Pläne + Verlauf)')) return;
+                if (!confirm('Ganz sicher? Das kann nicht rückgängig gemacht werden!')) return;
+                setPlans([]); setHistory([]); setSettings(DEFAULT_SETTINGS);
+                alert('Alles zurückgesetzt.');
+            };
+            const set = (patch) => setSettings(prev => ({ ...prev, ...patch }));
+
+            return (
+                <div className="animate-pop-in space-y-6">
+                    <h2 className="text-2xl font-black">Setup ⚙️</h2>
+
+                    <div className="iso-card bg-white p-4 rounded-2xl space-y-4">
+                        <div>
+                            <div className="flex justify-between items-center mb-1">
+                                <label className="font-black">Standard-Pause</label>
+                                <span className="font-black text-brandPurple">{settings.restDefault}s</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <button onClick={() => set({ restDefault: Math.max(15, settings.restDefault - 15) })} className="btn-3d bg-brandPink w-10 h-10 rounded-xl font-black">-</button>
+                                <input type="range" min="15" max="300" step="15" value={settings.restDefault}
+                                    onChange={(e) => set({ restDefault: Number(e.target.value) })} className="flex-1 accent-brandPurple" />
+                                <button onClick={() => set({ restDefault: Math.min(300, settings.restDefault + 15) })} className="btn-3d bg-brandGreen w-10 h-10 rounded-xl font-black">+</button>
+                            </div>
+                        </div>
+                        <Toggle label="Auto-Pause nach Satz" desc="Timer startet beim Abhaken automatisch" value={settings.autoRest} onChange={(v) => set({ autoRest: v })} />
+                        <Toggle label="Ton 🔊" desc="Piep wenn die Pause endet" value={settings.sound} onChange={(v) => { unlockAudio(); if (v) beep(); set({ sound: v }); }} />
+                        <Toggle label="Vibration 📳" desc="Nur Android – iPhone unterstützt das (noch) nicht" value={settings.vibrate} onChange={(v) => { if (v) haptic(60); set({ vibrate: v }); }} />
+                        <Toggle label="Bildschirm anlassen ☀️" desc="Kein Display-Timeout während des Trainings" value={settings.keepAwake} onChange={(v) => set({ keepAwake: v })} />
+                    </div>
+
+                    <div className="iso-card bg-white p-4 rounded-2xl space-y-3">
+                        <h3 className="font-black">Daten 💾</h3>
+                        <p className="text-xs font-bold text-gray-500 -mt-1">Alles liegt nur auf diesem Gerät. Mach ab und zu ein Backup!</p>
+                        <div className="grid grid-cols-2 gap-3">
+                            <button onClick={exportData} className="btn-3d bg-brandCyan py-3 rounded-xl font-black">⬇️ Backup</button>
+                            <button onClick={() => fileRef.current && fileRef.current.click()} className="btn-3d bg-brandYellow py-3 rounded-xl font-black">⬆️ Import</button>
+                        </div>
+                        <input ref={fileRef} type="file" accept="application/json,.json" onChange={importData} className="hidden" />
+                        <button onClick={resetAll} className="btn-3d bg-red-500 text-white py-3 rounded-xl font-black w-full">🗑️ Alles zurücksetzen</button>
+                    </div>
+
+                    <div className="iso-card bg-black text-white p-4 rounded-2xl">
+                        <h3 className="font-black text-brandCyan mb-2">📲 Auf dem iPhone installieren</h3>
+                        <p className="text-sm font-semibold leading-relaxed">
+                            In <b>Safari</b> öffnen → <b>Teilen</b>-Symbol <span className="text-brandYellow">⬆️</span> antippen → <b>„Zum Home-Bildschirm"</b>.
+                            Dann läuft Gorilla Gains wie eine echte App im Vollbild – auch offline. 🦍
+                        </p>
+                    </div>
+
+                    <p className="text-center text-xs font-bold text-gray-400 pb-2">Gorilla Gains · Beast Mode 🦍💦</p>
+                </div>
+            );
+        }
+
+        function Toggle({ label, desc, value, onChange }) {
+            return (
+                <div className="flex justify-between items-center gap-3">
+                    <div className="min-w-0">
+                        <div className="font-black">{label}</div>
+                        {desc && <div className="text-xs font-bold text-gray-500">{desc}</div>}
+                    </div>
+                    <button onClick={() => onChange(!value)}
+                        className={`w-16 h-9 rounded-full border-[3px] border-black flex-shrink-0 flex items-center transition-colors px-1 ${value ? 'bg-brandGreen justify-end' : 'bg-gray-300 justify-start'}`}>
+                        <span className="w-6 h-6 bg-white border-2 border-black rounded-full block" />
+                    </button>
+                </div>
+            );
+        }
+
+        // App mounten
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+
+        // Service Worker registrieren (PWA / Offline)
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch(() => {});
+            });
+        }
+    </script>
+
+    <!-- Compiler: JSX -> React.createElement (klassischer Runtime), dann ausführen -->
+    <script>
+        (function () {
+            try {
+                var src = document.getElementById('app-source').textContent;
+                var out = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]] }).code;
+                (0, eval)(out);
+            } catch (err) {
+                console.error('App-Fehler:', err);
+                document.getElementById('root').innerHTML =
+                    '<div style="padding:24px;font-family:sans-serif"><h2>😵 Fehler beim Laden</h2><pre style="white-space:pre-wrap;color:#b00">' +
+                    (err && err.message ? err.message : err) + '</pre></div>';
+            }
+        })();
+    </script>
+</body>
+</html>

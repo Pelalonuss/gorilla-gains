@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#BD00FF"/>
+      <stop offset="1" stop-color="#FF579F"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="512" height="512" rx="115" fill="url(#bg)"/>
+  <g>
+    <!-- ears -->
+    <circle cx="102" cy="179" r="59" fill="#1a1a1e"/>
+    <circle cx="410" cy="179" r="59" fill="#1a1a1e"/>
+    <circle cx="102" cy="179" r="29" fill="#9e9ea8"/>
+    <circle cx="410" cy="179" r="29" fill="#9e9ea8"/>
+    <!-- head -->
+    <rect x="85" y="113" width="342" height="317" rx="118" fill="#1a1a1e"/>
+    <!-- face patch -->
+    <rect x="136" y="179" width="240" height="231" rx="87" fill="#9e9ea8"/>
+    <!-- brow -->
+    <rect x="136" y="217" width="240" height="53" rx="26" fill="#1a1a1e"/>
+    <!-- eyes -->
+    <circle cx="197" cy="274" r="26" fill="#121216"/>
+    <circle cx="315" cy="274" r="26" fill="#121216"/>
+    <circle cx="205" cy="266" r="9" fill="#fff"/>
+    <circle cx="323" cy="266" r="9" fill="#fff"/>
+    <!-- nostrils -->
+    <ellipse cx="226" cy="343" rx="11" ry="16" fill="#121216"/>
+    <ellipse cx="286" cy="343" rx="11" ry="16" fill="#121216"/>
+    <!-- mouth -->
+    <path d="M213 355 Q256 388 299 355" fill="none" stroke="#121216" stroke-width="7" stroke-linecap="round"/>
+  </g>
+</svg>
