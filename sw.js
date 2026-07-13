@@ -1,6 +1,6 @@
 /* Gorilla Gains – Service Worker
    Simple offline-first cache so the app works without internet after first load. */
-const CACHE = 'gorilla-gains-v1';
+const CACHE = 'gorilla-gains-v2';
 
 // App-Shell + CDN-Abhängigkeiten vorab cachen
 const PRECACHE = [
@@ -39,24 +39,32 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
 
+  const isNavigation = req.mode === 'navigate' || req.destination === 'document';
+
+  // HTML/Navigation: network-first, damit Updates sofort ankommen (offline -> Cache)
+  if (isNavigation) {
+    event.respondWith((async () => {
+      try {
+        const res = await fetch(req);
+        const cache = await caches.open(CACHE);
+        cache.put('./index.html', res.clone());
+        return res;
+      } catch (err) {
+        return (await caches.match(req)) || (await caches.match('./index.html'));
+      }
+    })());
+    return;
+  }
+
+  // Restliche Assets (CDN, Icons): cache-first fürs schnelle/offline Laden
   event.respondWith((async () => {
     const cached = await caches.match(req);
     if (cached) return cached;
-    try {
-      const res = await fetch(req);
-      // erfolgreiche GETs im Hintergrund cachen (CDN + eigene Dateien)
-      if (res && (res.ok || res.type === 'opaque')) {
-        const cache = await caches.open(CACHE);
-        cache.put(req, res.clone());
-      }
-      return res;
-    } catch (err) {
-      // offline und nicht im Cache -> für Navigationen die index.html liefern
-      if (req.mode === 'navigate') {
-        const shell = await caches.match('./index.html');
-        if (shell) return shell;
-      }
-      throw err;
+    const res = await fetch(req);
+    if (res && (res.ok || res.type === 'opaque')) {
+      const cache = await caches.open(CACHE);
+      cache.put(req, res.clone());
     }
+    return res;
   })());
 });

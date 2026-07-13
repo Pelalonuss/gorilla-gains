@@ -327,6 +327,31 @@
             }
             return null;
         }
+        // Letzte Session, in der diese Übung wirklich trainiert wurde
+        function lastSessionExercise(history, exName) {
+            for (const s of history) {
+                const ex = (s.exercises || []).find(e => e.name === exName &&
+                    (e.doneSets > 0 || (Array.isArray(e.loggedSets) && e.loggedSets.some(x => x.done))));
+                if (ex) return ex;
+            }
+            return null;
+        }
+        // Referenzwerte für Satz i aus der letzten Session (mit Fallback für altes Datenformat)
+        function lastSetRef(lastEx, i) {
+            if (!lastEx) return null;
+            if (Array.isArray(lastEx.loggedSets)) {
+                const s = lastEx.loggedSets[i];
+                if (s && s.done) return { weight: s.weight, reps: s.reps };
+                const doneOnes = lastEx.loggedSets.filter(x => x.done);
+                if (doneOnes.length) {
+                    const d = doneOnes[Math.min(i, doneOnes.length - 1)];
+                    return { weight: d.weight, reps: d.reps };
+                }
+            }
+            // altes Format: nur ein Wert pro Übung
+            if (typeof lastEx.reps === 'number') return { weight: lastEx.weight, reps: lastEx.reps };
+            return null;
+        }
 
         /* ============================================================
            Logo
@@ -501,10 +526,34 @@
 
             const currentPlan = plans.find(p => p.id === selectedPlanId);
 
+            // Letzte Session je Übung (für "zuletzt"-Anzeige + PR-Erkennung)
+            const lastMap = React.useMemo(() => {
+                const m = {};
+                if (currentPlan) currentPlan.exercises.forEach(ex => { m[ex.id] = lastSessionExercise(history, ex.name); });
+                return m;
+            }, [currentPlan, history]);
+
+            const blankSet = (ex) => ({ weight: (ex.weight ?? 0), reps: (ex.reps ?? 0), done: false });
+            const ensureArr = (prev, ex) => {
+                const arr = prev[ex.id] ? prev[ex.id].slice() : [];
+                while (arr.length < ex.sets) arr.push(blankSet(ex));
+                return arr;
+            };
+
             const openPlan = (id) => {
                 const plan = plans.find(p => p.id === id);
                 const init = {};
-                (plan.exercises || []).forEach(ex => { init[ex.id] = new Array(ex.sets).fill(false); });
+                (plan.exercises || []).forEach(ex => {
+                    const lastEx = lastSessionExercise(history, ex.name);
+                    init[ex.id] = Array.from({ length: ex.sets }).map((_, i) => {
+                        const ref = lastSetRef(lastEx, i);
+                        return {
+                            weight: ref ? ref.weight : (ex.weight ?? 0),
+                            reps: ref ? ref.reps : (ex.reps ?? 0),
+                            done: false,
+                        };
+                    });
+                });
                 setProgress(init);
                 setStartedAt(Date.now());
                 setSelectedPlanId(id);
@@ -512,15 +561,35 @@
 
             const toggleSet = (ex, i) => {
                 setProgress(prev => {
-                    const arr = (prev[ex.id] || new Array(ex.sets).fill(false)).slice();
-                    while (arr.length < ex.sets) arr.push(false);
-                    arr[i] = !arr[i];
-                    if (arr[i]) {
+                    const arr = ensureArr(prev, ex);
+                    const cur = { ...arr[i], done: !arr[i].done };
+                    arr[i] = cur;
+                    if (cur.done) {
+                        const ref = lastSetRef(lastMap[ex.id], i);
+                        const beat = ref && Number(cur.reps) > Number(ref.reps);
                         fireConfetti();
-                        if (settings.vibrate) haptic(30);
+                        if (beat) { setTimeout(fireConfetti, 140); if (settings.sound) beep(); }
+                        if (settings.vibrate) haptic(beat ? [40, 40, 70] : 30);
                         if (settings.autoRest) startTimer(ex.rest || settings.restDefault);
                     }
                     return { ...prev, [ex.id]: arr };
+                });
+            };
+
+            const updateSetField = (ex, i, field, value) => {
+                setProgress(prev => {
+                    const arr = ensureArr(prev, ex);
+                    arr[i] = { ...arr[i], [field]: value };
+                    return { ...prev, [ex.id]: arr };
+                });
+            };
+
+            const copyFirstToAll = (ex) => {
+                setProgress(prev => {
+                    const arr = ensureArr(prev, ex);
+                    if (!arr.length) return prev;
+                    const first = arr[0];
+                    return { ...prev, [ex.id]: arr.map(s => ({ ...s, weight: first.weight, reps: first.reps })) };
                 });
             };
 
@@ -529,9 +598,10 @@
                 let done = 0, all = 0, volume = 0;
                 currentPlan.exercises.forEach(ex => {
                     const arr = progress[ex.id] || [];
-                    const d = arr.filter(Boolean).length;
-                    done += d; all += ex.sets;
-                    volume += (Number(ex.weight) || 0) * (Number(ex.reps) || 0) * d;
+                    arr.forEach(s => {
+                        if (s.done) { done += 1; volume += (Number(s.weight) || 0) * (Number(s.reps) || 0); }
+                    });
+                    all += ex.sets;
                 });
                 return { done, all, volume };
             }, [currentPlan, progress]);
@@ -545,10 +615,14 @@
                     durationSec: startedAt ? Math.round((Date.now() - startedAt) / 1000) : 0,
                     totalVolume: Math.round(totals.volume),
                     totalSets: totals.done,
-                    exercises: currentPlan.exercises.map(ex => ({
-                        name: ex.name, weight: Number(ex.weight) || 0, reps: Number(ex.reps) || 0,
-                        sets: ex.sets, doneSets: (progress[ex.id] || []).filter(Boolean).length
-                    })),
+                    exercises: currentPlan.exercises.map(ex => {
+                        const arr = progress[ex.id] || [];
+                        const doneOnes = arr.filter(s => s.done);
+                        const loggedSets = arr.map(s => ({ weight: Number(s.weight) || 0, reps: Number(s.reps) || 0, done: !!s.done }));
+                        const topWeight = doneOnes.reduce((a, s) => Math.max(a, Number(s.weight) || 0), Number(ex.weight) || 0);
+                        const repsRep = doneOnes.length ? (Number(doneOnes[doneOnes.length - 1].reps) || 0) : (Number(ex.reps) || 0);
+                        return { name: ex.name, sets: ex.sets, doneSets: doneOnes.length, weight: topWeight, reps: repsRep, loggedSets };
+                    }),
                 };
                 if (totals.done > 0) setHistory(prev => [session, ...prev].slice(0, 200));
                 if (settings.sound) beep('big');
@@ -612,9 +686,11 @@
 
                     <div className="flex flex-col gap-5">
                         {currentPlan.exercises.map(ex => (
-                            <ExerciseCard key={ex.id} exercise={ex} planId={currentPlan.id} setPlans={setPlans}
-                                done={progress[ex.id] || []} onToggle={(i) => toggleSet(ex, i)}
-                                last={lastPerformance(history, ex.name)}
+                            <ExerciseCard key={ex.id} exercise={ex}
+                                log={progress[ex.id] || []} lastEx={lastMap[ex.id]}
+                                onToggle={(i) => toggleSet(ex, i)}
+                                onField={(i, field, value) => updateSetField(ex, i, field, value)}
+                                onCopyFirst={() => copyFirstToAll(ex)}
                                 onRest={() => startTimer(ex.rest || settings.restDefault)} />
                         ))}
                         {currentPlan.exercises.length === 0 && (
@@ -632,59 +708,75 @@
             );
         }
 
-        function ExerciseCard({ exercise, planId, setPlans, done, onToggle, last, onRest }) {
-            const patch = (field, value) => setPlans(prev => prev.map(p => p.id !== planId ? p : {
-                ...p, exercises: p.exercises.map(e => e.id !== exercise.id ? e : { ...e, [field]: value })
-            }));
-
-            const doneCount = done.filter(Boolean).length;
+        function ExerciseCard({ exercise, log, lastEx, onToggle, onField, onCopyFirst, onRest }) {
+            const doneCount = log.filter(s => s && s.done).length;
             const complete = doneCount >= exercise.sets && exercise.sets > 0;
 
             return (
                 <div className={`iso-card p-4 rounded-2xl transition-colors ${complete ? 'bg-brandGreen' : 'bg-white'}`}>
-                    <div className="flex justify-between items-center mb-3 border-b-2 border-black/20 pb-2">
-                        <h3 className="text-xl font-black">{complete ? '✅ ' : ''}{exercise.name}</h3>
-                        <span className="text-xs font-black bg-black text-white px-2 py-1 rounded-lg">{doneCount}/{exercise.sets}</span>
+                    <div className="flex justify-between items-center mb-3 border-b-2 border-black/20 pb-2 gap-2">
+                        <h3 className="text-xl font-black truncate">{complete ? '✅ ' : ''}{exercise.name}</h3>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                            {exercise.sets > 1 && (
+                                <button onClick={onCopyFirst} title="Werte von Satz 1 auf alle übernehmen"
+                                    className="bg-gray-200 border-2 border-black rounded-lg px-2 py-1 text-xs font-black active:translate-y-0.5">⧉ alle</button>
+                            )}
+                            <span className="text-xs font-black bg-black text-white px-2 py-1 rounded-lg">{doneCount}/{exercise.sets}</span>
+                        </div>
                     </div>
 
-                    {last && (
-                        <div className="text-xs font-bold text-gray-500 mb-3 -mt-1">
-                            📈 Letztes Mal: {last.weight} kg × {last.reps} · {last.doneSets} Sätze
-                        </div>
-                    )}
-
-                    <div className="flex gap-3 mb-4">
-                        <NumField label="Gewicht (kg)" value={exercise.weight} onChange={(v) => patch('weight', v)} step="2.5" />
-                        <NumField label="Reps" value={exercise.reps} onChange={(v) => patch('reps', v)} step="1" />
+                    {/* Spaltenköpfe */}
+                    <div className="grid grid-cols-[26px_1fr_1fr_46px] gap-2 items-center px-1 mb-1 text-[10px] font-black text-gray-400 uppercase">
+                        <span>Satz</span>
+                        <span className="text-center">Kg</span>
+                        <span className="text-center">Wdh</span>
+                        <span className="text-center">Ok</span>
                     </div>
 
-                    <div className="flex justify-between items-end">
-                        <div className="flex-1">
-                            <label className="text-sm font-bold text-gray-600 mb-2 block">Sätze abhaken 👇</label>
-                            <div className="flex gap-3 flex-wrap">
-                                {Array.from({ length: exercise.sets }).map((_, i) => (
-                                    <input key={i} type="checkbox" className="dopamine-checkbox"
-                                        checked={done[i] || false} onChange={() => onToggle(i)} />
-                                ))}
-                            </div>
-                        </div>
+                    <div className="flex flex-col gap-2">
+                        {Array.from({ length: exercise.sets }).map((_, i) => {
+                            const st = log[i] || { weight: '', reps: '', done: false };
+                            const ref = lastSetRef(lastEx, i);
+                            const beat = st.done && ref && Number(st.reps) > Number(ref.reps);
+                            return (
+                                <div key={i} className={`grid grid-cols-[26px_1fr_1fr_46px] gap-2 items-start rounded-xl p-1.5 border-2 ${st.done ? (beat ? 'bg-brandYellow border-black' : 'bg-white border-black') : 'bg-gray-50 border-gray-300'}`}>
+                                    <span className="w-6 h-6 mt-1 rounded-md bg-black text-white font-black text-xs flex items-center justify-center">{i + 1}</span>
+
+                                    <div className="flex flex-col">
+                                        <input type="number" inputMode="decimal" step="2.5" value={st.weight}
+                                            onFocus={(e) => e.target.select()}
+                                            onChange={(e) => onField(i, 'weight', e.target.value === '' ? '' : Number(e.target.value))}
+                                            className="w-full bg-gray-100 border-2 border-black rounded-lg px-1 py-1 font-black text-lg outline-none text-center" />
+                                        <span className="text-[9px] font-bold text-gray-400 text-center leading-tight mt-0.5">{ref ? `zuletzt ${ref.weight}` : '–'}</span>
+                                    </div>
+
+                                    <div className="flex flex-col">
+                                        <div className="relative">
+                                            <input type="number" inputMode="numeric" step="1" value={st.reps}
+                                                onFocus={(e) => e.target.select()}
+                                                onChange={(e) => onField(i, 'reps', e.target.value === '' ? '' : Number(e.target.value))}
+                                                className={`w-full bg-gray-100 border-2 rounded-lg px-1 py-1 font-black text-lg outline-none text-center ${beat ? 'border-brandGreen text-brandPurple' : 'border-black'}`} />
+                                            {beat && <span className="absolute -top-2 -right-1 text-sm">🚀</span>}
+                                        </div>
+                                        <span className={`text-[9px] font-bold text-center leading-tight mt-0.5 ${beat ? 'text-brandPurple' : 'text-gray-400'}`}>
+                                            {ref ? (beat ? `zuletzt ${ref.reps} · +${Number(st.reps) - Number(ref.reps)}!` : `zuletzt ${ref.reps}`) : '–'}
+                                        </span>
+                                    </div>
+
+                                    <div className="flex justify-center pt-0.5">
+                                        <input type="checkbox" className="dopamine-checkbox" checked={!!st.done} onChange={() => onToggle(i)} />
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    <div className="flex justify-end mt-3">
                         <button onClick={onRest} title="Pause starten"
-                            className="btn-3d bg-black text-brandCyan px-3 py-2 rounded-xl font-black text-sm flex items-center gap-1 ml-2">
-                            ⏱️ {exercise.rest || 90}s
+                            className="btn-3d bg-black text-brandCyan px-3 py-2 rounded-xl font-black text-sm flex items-center gap-1">
+                            ⏱️ {exercise.rest || 90}s Pause
                         </button>
                     </div>
-                </div>
-            );
-        }
-
-        function NumField({ label, value, onChange, step }) {
-            return (
-                <div className="flex-1 bg-gray-100 p-2 rounded-xl border-2 border-black flex flex-col">
-                    <label className="text-xs font-bold text-gray-500 uppercase">{label}</label>
-                    <input type="number" inputMode="decimal" step={step} value={value}
-                        onFocus={(e) => e.target.select()}
-                        onChange={(e) => onChange(e.target.value === '' ? '' : Number(e.target.value))}
-                        className="bg-transparent font-black text-xl outline-none w-full" />
                 </div>
             );
         }
